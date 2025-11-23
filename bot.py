@@ -129,9 +129,9 @@ async def process_product_price(message: types.Message, state: FSMContext):
 async def cmd_back(message: types.Message):
     await message.answer("Главное меню:", reply_markup=get_main_keyboard())
 
-# Простой запуск бота
+# Запуск бота
 async def main():
-    logger.info("Starting Telegram bot...")
+    logger.info("Starting Telegram bot on Koyeb...")
     await dp.start_polling(bot)
 
 if __name__ == '__main__':

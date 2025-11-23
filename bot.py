@@ -7,8 +7,6 @@ from aiogram import F
 import asyncio
 import logging
 import os
-from flask import Flask
-import threading
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -18,7 +16,8 @@ logger = logging.getLogger(__name__)
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 if not BOT_TOKEN:
     logger.error("BOT_TOKEN not found!")
-    
+    exit(1)
+
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
@@ -130,48 +129,10 @@ async def process_product_price(message: types.Message, state: FSMContext):
 async def cmd_back(message: types.Message):
     await message.answer("Главное меню:", reply_markup=get_main_keyboard())
 
-# Функция запуска бота
-async def start_bot():
-    try:
-        logger.info("Starting bot...")
-        await dp.start_polling(bot)
-    except Exception as e:
-        logger.error(f"Bot error: {e}")
-
-# Flask приложение для Render
-app = Flask(__name__)
-
-@app.route('/')
-def home():
-    return "Telegram Bot is running and ready!"
-
-@app.route('/health')
-def health():
-    return "OK"
-
-# Запуск бота в отдельном потоке
-def run_bot():
-    try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(start_bot())
-    except Exception as e:
-        logger.error(f"Bot thread error: {e}")
-
-# Глобальная переменная для хранения потока бота
-bot_thread = None
-
-@app.before_first_request
-def startup():
-    global bot_thread
+# Простой запуск бота
+async def main():
     logger.info("Starting Telegram bot...")
-    bot_thread = threading.Thread(target=run_bot, daemon=True)
-    bot_thread.start()
-    logger.info("Telegram bot started in background thread")
+    await dp.start_polling(bot)
 
 if __name__ == '__main__':
-    # Запускаем бот сразу при старте
-    startup()
-    
-    # Запускаем Flask сервер
-    app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
+    asyncio.run(main())

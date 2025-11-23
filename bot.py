@@ -12,11 +12,15 @@ import threading
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Инициализация бота и диспетчера
-storage = MemoryStorage()
-bot = Bot(token=os.getenv('BOT_TOKEN'))
-dp = Dispatcher(storage=storage)
+BOT_TOKEN = os.getenv('BOT_TOKEN')
+if not BOT_TOKEN:
+    logger.error("BOT_TOKEN not found!")
+    
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher()
 
 # Фиксированные значения
 EXCHANGE_RATE = 12.0
@@ -128,24 +132,46 @@ async def cmd_back(message: types.Message):
 
 # Функция запуска бота
 async def start_bot():
-    await dp.start_polling(bot)
+    try:
+        logger.info("Starting bot...")
+        await dp.start_polling(bot)
+    except Exception as e:
+        logger.error(f"Bot error: {e}")
 
 # Flask приложение для Render
 app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Telegram Bot is running!"
+    return "Telegram Bot is running and ready!"
+
+@app.route('/health')
+def health():
+    return "OK"
 
 # Запуск бота в отдельном потоке
 def run_bot():
-    asyncio.run(start_bot())
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(start_bot())
+    except Exception as e:
+        logger.error(f"Bot thread error: {e}")
 
-# Запускаем бот при старте
-if __name__ == '__main__':
-    # Запускаем бота в отдельном потоке
+# Глобальная переменная для хранения потока бота
+bot_thread = None
+
+@app.before_first_request
+def startup():
+    global bot_thread
+    logger.info("Starting Telegram bot...")
     bot_thread = threading.Thread(target=run_bot, daemon=True)
     bot_thread.start()
+    logger.info("Telegram bot started in background thread")
+
+if __name__ == '__main__':
+    # Запускаем бот сразу при старте
+    startup()
     
     # Запускаем Flask сервер
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)

@@ -7,20 +7,27 @@ from aiogram import F
 import asyncio
 import logging
 import os
+from flask import Flask
+import threading
 
+# Настройка логирования
 logging.basicConfig(level=logging.INFO)
 
+# Инициализация бота и диспетчера
 storage = MemoryStorage()
 bot = Bot(token=os.getenv('BOT_TOKEN'))
 dp = Dispatcher(storage=storage)
 
+# Фиксированные значения
 EXCHANGE_RATE = 12.0
 SERVICE_FEE = 1000
 CHINA_SHIPPING = 800
 
+# Состояния
 class CalculatorStates(StatesGroup):
     waiting_for_product_price = State()
 
+# Клавиатуры
 def get_main_keyboard():
     keyboard = [
         [types.KeyboardButton(text='💸 Калькулятор'), types.KeyboardButton(text='📊 Актуальный курс')],
@@ -32,6 +39,7 @@ def get_calc_keyboard():
     keyboard = [[types.KeyboardButton(text='🔙 Вернуться в меню')]]
     return types.ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
+# Обработчики бота
 @dp.message(Command('start'))
 async def cmd_start(message: types.Message):
     await message.answer(
@@ -118,8 +126,26 @@ async def process_product_price(message: types.Message, state: FSMContext):
 async def cmd_back(message: types.Message):
     await message.answer("Главное меню:", reply_markup=get_main_keyboard())
 
-async def main():
+# Функция запуска бота
+async def start_bot():
     await dp.start_polling(bot)
 
+# Flask приложение для Render
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Telegram Bot is running!"
+
+# Запуск бота в отдельном потоке
+def run_bot():
+    asyncio.run(start_bot())
+
+# Запускаем бот при старте
 if __name__ == '__main__':
-    asyncio.run(main())
+    # Запускаем бота в отдельном потоке
+    bot_thread = threading.Thread(target=run_bot, daemon=True)
+    bot_thread.start()
+    
+    # Запускаем Flask сервер
+    app.run(host='0.0.0.0', port=5000, debug=False)
